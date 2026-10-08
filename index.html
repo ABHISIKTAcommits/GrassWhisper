@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#081c15">
+  <meta name="description" content="GrassWhisper is a local AI audio gatekeeper for screen-free outdoor walks.">
+  <title>GrassWhisper🌿 </title>
+  <link rel="stylesheet" href="offline.css">
+  <style>
+    .bg-aurora{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:-1}
+    .bg-aurora span{position:absolute;border-radius:999px;filter:blur(50px);opacity:.28}
+    .bg-aurora .one{width:28rem;height:28rem;background:#2e9f6c;top:-12rem;left:-8rem}
+    .bg-aurora .two{width:24rem;height:24rem;background:#1f7a8c;bottom:-10rem;right:-5rem}
+    .bg-aurora .three{width:18rem;height:18rem;background:#b59f3d;top:42%;right:27%}
+  </style>
+</head>
+<body>
+  <div class="bg-aurora"><span class="one"></span><span class="two"></span><span class="three"></span></div>
+
+  <header class="site-header">
+    <div class="brand-block">
+      <div class="brand-mark"><span>🌿</span></div>
+      <div>
+        <div class="brand-line">
+          <h1>GrassWhisper</h1>
+          <span class="brand-pill">LOCAL AI</span>
+        </div>
+        <p>Touch grass. Let your phone handle the noise.</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span id="modelBadge" class="model-badge"><span class="status-dot"></span><span id="modelName">Local Model</span></span>
+      <button onclick="testAudio()" class="ghost-btn"><i class="fa-solid fa-volume-high"></i><span>Test audio</span></button>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="hero-panel">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-dot"></span> Screen-free notification triage</div>
+        <h2>Go outside.<br><span>Stay unreachable.</span></h2>
+        <p>GrassWhisper quietly sorts incoming notifications on your device and only interrupts your walk when something genuinely needs you.</p>
+        <div class="hero-trust">
+          <span>✦ Runs locally</span>
+          <span>✦ Audio-first</span>
+          <span>✦ Smart batching</span>
+        </div>
+      </div>
+      <div class="hero-status-card">
+        <div class="status-topline">
+          <div>
+            <span class="mini-label">CURRENT STATE</span>
+            <div class="state-line"><span id="walkStatusIndicator" class="state-dot"></span><h3 id="walkStateTitle">Screen Resting</h3></div>
+          </div>
+          <span class="live-chip"><span></span> <span id="heroLiveLabel">READY</span></span>
+        </div>
+        <p id="walkStateSubtitle">Ready to head outside. Keep your phone in your pocket.</p>
+        <button id="walkToggleBtn" onclick="toggleWalk()" class="walk-btn"><i id="walkBtnIcon" class="fa-solid fa-person-walking"></i><span id="walkBtnText">Start Walk Mode</span></button>
+        <div class="smart-detection-card">
+          <div class="smart-detection-head">
+            <div>
+              <span class="mini-label">SMART WALK DETECTION</span>
+              <strong id="motionStateTitle">Sensor standby</strong>
+            </div>
+            <button id="smartDetectBtn" onclick="toggleSmartDetection()" class="sensor-toggle">Enable</button>
+          </div>
+          <p id="motionStateText">Use Android activity recognition to detect walking automatically.</p>
+          <div class="sensor-status-row"><span id="motionStatusDot" class="sensor-status-dot"></span><span id="motionStatusLabel">Detection off</span><span class="sensor-note">Manual control always available</span></div>
+        </div>
+        <div class="hero-score-row">
+          <div class="score-orb" id="scoreOrb"><div class="score-ring"><div><strong id="liveNoScreenScore">100%</strong><span>screen-free</span></div></div></div>
+          <div class="score-copy"><span class="mini-label">NO SCREEN CHALLENGE</span><strong>Keep the ratio high.</strong><p>The less you look, the better your walk score.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="metrics-grid">
+      <article class="metric-card metric-green"><span class="metric-icon">⏱</span><div><span class="metric-label">Walk duration</span><strong id="liveWalkDuration">0 sec</strong></div></article>
+      <article class="metric-card metric-mint"><span class="metric-icon">◉</span><div><span class="metric-label">Screen time</span><strong id="liveScreenTime">0 sec</strong></div></article>
+      <article class="metric-card metric-white"><span class="metric-icon">◌</span><div><span class="metric-label">Notifications</span><strong id="liveTotalNotifications">0</strong></div></article>
+      <article class="metric-card metric-amber"><span class="metric-icon">↗</span><div><span class="metric-label">Allowed through</span><strong id="liveAllowed">0</strong></div></article>
+      <article class="metric-card metric-green"><span class="metric-icon">✦</span><div><span class="metric-label">Suppressed</span><strong id="liveSuppressed">0</strong></div></article>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="panel-stack">
+        <section class="panel-card">
+          <div class="panel-heading"><div><span class="section-kicker">PERSONALIZE</span><h3>Walk filter</h3></div><span class="panel-icon">☘</span></div>
+          <p class="panel-copy">Tell the local AI what deserves your attention while you're outside.</p>
+          <textarea id="walkContextInput" rows="4" placeholder="e.g. Only alert if Mom calls, flight changes, or a critical work outage.">Walking outdoors in nature. Only interrupt for life safety, urgent family issues, or critical work server outages.</textarea>
+          <div class="split-row"><span class="micro-note">Zero cloud transmission</span><button onclick="saveContext()" class="small-btn">Update filter</button></div>
+          <div class="setting-block">
+            <label for="voiceSelect"><span>Alert voice</span><small>Offline system voice</small></label>
+            <select id="voiceSelect"><option>Loading system voices...</option></select>
+          </div>
+          <div class="setting-block audio-privacy-block">
+            <div class="setting-title"><span>Audio privacy</span><span id="audioModeStatus" class="timer-status">Privacy Mode ON</span></div>
+            <div class="audio-mode-grid">
+              <button id="privacyModeBtn" type="button" onclick="setAudioPrivacyMode('safe')" class="audio-mode-btn active">
+                <span class="audio-mode-icon">🔒</span>
+                <span><strong>Privacy Mode ON</strong><small>Safe summaries only</small></span>
+              </button>
+              <button id="fullReadoutModeBtn" type="button" onclick="setAudioPrivacyMode('full')" class="audio-mode-btn">
+                <span class="audio-mode-icon">🔊</span>
+                <span><strong>Full Readout Mode</strong><small>Read the message aloud</small></span>
+              </button>
+            </div>
+            <small>Privacy Mode never speaks private message contents aloud.</small>
+          </div>
+          <div class="setting-block">
+            <div class="setting-title"><span>Gentle return timer</span><span id="returnTimerStatus" class="timer-status">No reminder set</span></div>
+            <select id="returnTimerSelect">
+              <option value="0">No return reminder</option>
+              <option value="15">15-minute walk</option>
+              <option value="30">30-minute walk</option>
+              <option value="45">45-minute walk</option>
+              <option value="60">60-minute walk</option>
+            </select>
+            <small>A quiet local reminder plays when your chosen walk time is complete.</small>
+          </div>
+          <div class="batch-note"><span>✦</span><div><strong>Smart Batching Active</strong><p>Low-priority notifications are collected silently and shown when your walk ends.</p></div></div>
+        </section>
+
+        <section class="panel-card vip-panel">
+          <div class="panel-heading"><div><span class="section-kicker amber">TRUSTED PEOPLE</span><h3>Saved VIP contacts</h3></div><span class="panel-icon amber">★</span></div>
+          <p class="panel-copy">VIP contacts add context, but casual messages still stay silent unless they need action now.</p>
+          <div class="input-row"><input id="newVipInput" type="text" placeholder="Add Mom, Boss, Sarah..." onkeydown="if(event.key==='Enter') addVipContact()"><button onclick="addVipContact()" class="small-btn amber-btn">Add</button></div>
+          <div id="vipChipsContainer" class="chip-list"></div>
+          <details>
+            <summary>Edit family emergency contacts <span>⌄</span></summary>
+            <div class="details-body">
+              <label for="familyContactSelect">Person used by Family Emergency</label>
+              <select id="familyContactSelect" onchange="updateFamilyEmergencyPreview()"></select>
+              <div class="input-row"><input id="familyContactInput" type="text" placeholder="Add an emergency contact" onkeydown="if(event.key==='Enter') addFamilyContact()"><button onclick="addFamilyContact()" class="small-btn danger-btn">Add</button></div>
+              <p>Contacts added here are saved as VIP contacts.</p>
+            </div>
+          </details>
+        </section>
+      </div>
+
+      <div class="panel-stack">
+        <section class="panel-card simulator-panel">
+          <div class="panel-heading"><div><span class="section-kicker">DEMO LAB</span><h3>Notification simulator</h3></div><span class="demo-badge">QUICK TEST</span></div>
+          <p class="panel-copy">Trigger realistic notifications and watch the local AI decide what reaches you.</p>
+          <div class="preset-grid">
+            <button onclick="sendFamilyEmergency()" class="preset preset-critical"><span class="preset-icon">!</span><span><strong>Family emergency</strong><small id="familyEmergencyPreview">Mom: Dad had a fall, need you...</small></span></button>
+            <button onclick="sendPreset('PagerDuty', 'DevOps Alert', 'CRITICAL P0: Production database latency spiked to 98% packet loss!')" class="preset preset-important"><span class="preset-icon">↗</span><span><strong>Work server crash</strong><small>PagerDuty: CRITICAL P0 latency...</small></span></button>
+            <button onclick="sendPreset('DoorDash', 'Special Offers', 'Get 50% OFF your next order! Fresh pizza is waiting for you 🍕')" class="preset preset-queued"><span class="preset-icon">◌</span><span><strong>Marketing promo</strong><small>DoorDash: 50% off pizza...</small></span></button>
+            <button onclick="sendPreset('Group Chat', 'College Buddies', 'Look at this hilarious dog video lol 🐕')" class="preset preset-queued"><span class="preset-icon">☁</span><span><strong>Casual meme</strong><small>Group Chat: Hilarious dog video...</small></span></button>
+            <button onclick="sendPreset('BankSecure', 'BankSecure', 'Your OTP is 482916. Do not share this code with anyone. Expires in 5 minutes.')" class="preset preset-otp"><span class="preset-icon">⌁</span><span><strong>Security OTP</strong><small>BankSecure: Your OTP is 482916...</small></span></button>
+            <button onclick="sendPreset('WhatsApp', 'Mom', 'Hey sweetheart, can you pick up some fresh bread on your way back from your walk?')" class="preset preset-vip"><span class="preset-icon">★</span><span><strong>VIP · casual request</strong><small>Mom: Pick up fresh bread?</small></span></button>
+          </div>
+          <details class="custom-details">
+            <summary>Send a custom notification <span>⌄</span></summary>
+            <div class="details-body">
+              <div class="input-grid"><input id="customApp" type="text" placeholder="App name"><input id="customSender" type="text" placeholder="Sender"></div>
+              <textarea id="customMsg" rows="3" placeholder="Message content..."></textarea>
+              <button onclick="sendCustom()" class="full-btn">Dispatch to Local AI</button>
+            </div>
+          </details>
+        </section>
+      </div>
+
+      <section class="panel-card feed-panel">
+        <div class="panel-heading"><div><span class="section-kicker">LIVE SIGNAL</span><h3>Ambient activity</h3></div><div class="feed-actions"><button id="feedToggle" onclick="toggleFeedExpansion()" class="feed-toggle hidden"></button><button onclick="clearHistory()" class="feed-clear">Clear</button></div></div>
+        <div class="feed-summary"><span class="signal-pulse"></span><span>Listening locally</span><span class="feed-summary-sep">·</span><span>Conversation-aware</span><span class="feed-summary-sep">·</span><span>Repeated contact + duplicate event merging</span></div>
+        <div id="feedList" class="feed-list">
+          <div id="emptyFeed" class="empty-feed"><div class="empty-glyph">🌲</div><strong>Your walk is quiet.</strong><p>Start Walk Mode, then trigger a notification above.</p></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="digestModal" class="digest-modal hidden">
+    <div class="digest-shell">
+      <div class="digest-top"><span class="digest-kicker">WALK COMPLETE</span><button onclick="closeDigest()" class="digest-close">×</button></div>
+      <div class="digest-icon">🌿</div>
+      <span class="section-kicker">NO SCREEN CHALLENGE</span>
+      <h3>Nice. You actually went outside.</h3>
+      <p class="digest-lead">Your phone handled the noise while you handled the walk.</p>
+      <div class="digest-score"><div class="digest-score-ring"><strong id="digestNoScreenScore">100%</strong><span>screen-free</span></div></div>
+      <div class="challenge-grid digest-grid">
+        <div class="challenge-stat"><p id="digestWalkDuration" class="challenge-value challenge-green">0 sec</p><p class="challenge-label">Walk duration</p></div>
+        <div class="challenge-stat"><p id="digestScreenTime" class="challenge-value challenge-mint">0 sec</p><p class="challenge-label">Screen time</p></div>
+        <div class="challenge-stat"><p id="digestTotal" class="challenge-value challenge-white">0</p><p class="challenge-label">Notifications received</p></div>
+        <div class="challenge-stat challenge-allowed"><p id="digestAllowed" class="challenge-value challenge-amber">0</p><p class="challenge-label">Allowed through</p><p class="challenge-sub">Urgent alerts spoken</p></div>
+        <div class="challenge-stat challenge-suppressed"><p id="digestSuppressed" class="challenge-value challenge-green">0</p><p class="challenge-label">Suppressed</p><p class="challenge-sub">Queued silently</p></div>
+      </div>
+      <p id="digestSummary" class="digest-summary" aria-live="polite"></p>
+      <div class="digest-quote">You stayed outside. <span>Your phone handled the noise.</span></div>
+      <button onclick="closeDigest()" class="digest-btn">Resume Regular Mode</button>
+    </div>
+  </div>
+
+  <script>
+    let isWalkActive = false;
+    let synth = window.speechSynthesis;
+    let voices = [];
+    let returnTimerId = null;
+    let returnTimerEndsAt = null;
+    let walkStartedAt = null;
+    let screenVisibleStartedAt = null;
+    let screenTimeMs = 0;
+    let challengeTimerId = null;
+    let smartDetectionEnabled = false;
+    let pauseTimerId = null;
+    let autoStartedWalk = false;
+    let walkTransitionInProgress = false;
+    let audioPrivacyMode = "safe";
+    function populateVoices() {
+      if (!synth) return;
+      voices = synth.getVoices();
+      const select = document.getElementById("voiceSelect");
+      if (!select) return;
+      select.innerHTML = "";
+      voices.forEach((v, i) => {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = `${v.name} (${v.lang})`;
+        if (v.lang.includes("en") && !opt.selected) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+    }
+
+    if (synth && synth.onvoiceschanged !== undefined) {
+      synth.onvoiceschanged = populateVoices;
+    }
+    populateVoices();
+
+    async function speakText(text) {
+
+      if (!synth) {
+        console.warn("Speech synthesis not supported in this browser.");
+        return;
+      }
+      synth.cancel(); 
+      const utter = new SpeechSynthesisUtterance(text);
+      const select = document.getElementById("voiceSelect");
+      if (voices.length > 0 && select && select.value) {
+        utter.voice = voices[select.value];
+      }
+      utter.rate = 1.0;
+      utter.pitch = 1.0;
+      synth.speak(utter);
+    }
+
+    function testAudio() {
+      speakText("GrassWhisper audio test. Audio gatekeeper is active and connected to your earphones.");
+    }
+
+    function updateReturnTimerStatus() {
+      const status = document.getElementById("returnTimerStatus");
+      if (!status) return;
+      if (!returnTimerEndsAt) {
+        status.textContent = "No reminder set";
+        return;
+      }
+      const remaining = Math.max(0, returnTimerEndsAt - Date.now());
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      status.textContent = `${minutes}:${String(seconds).padStart(2, "0")} remaining`;
+    }
+
+    function stopReturnTimer() {
+      if (returnTimerId) clearInterval(returnTimerId);
+      returnTimerId = null;
+      returnTimerEndsAt = null;
+      updateReturnTimerStatus();
+    }
+
+    function startReturnTimer() {
+      stopReturnTimer();
+      const minutes = Number(document.getElementById("returnTimerSelect").value);
+      if (!minutes) return;
+      returnTimerEndsAt = Date.now() + minutes * 60 * 1000;
+      updateReturnTimerStatus();
+      returnTimerId = setInterval(() => {
+        if (Date.now() >= returnTimerEndsAt) {
+          clearInterval(returnTimerId);
+          returnTimerId = null;
+          returnTimerEndsAt = null;
+          document.getElementById("returnTimerStatus").textContent = "Gentle reminder sent";
+          speakText("Your walk timer is complete. Take your time heading back when you are ready.");
+          return;
+        }
+        updateReturnTimerStatus();
+      }, 1000);
+    }
+
+    function formatChallengeDuration(ms) {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      if (minutes === 0) return `${seconds} sec`;
+      if (seconds === 0) return `${minutes} min`;
+      return `${minutes} min ${seconds} sec`;
+    }
+
+    function updateChallengeStats() {
+      if (!walkStartedAt) return;
+      const walkDurationMs = Date.now() - walkStartedAt;
+      let currentScreenTimeMs = screenTimeMs;
+      if (screenVisibleStartedAt !== null && !document.hidden) {
+        currentScreenTimeMs += Date.now() - screenVisibleStartedAt;
+      }
+      const muted = Number(document.getElementById("liveSuppressed")?.textContent) || 0;
+      const urgent = Number(document.getElementById("liveAllowed")?.textContent) || 0;
+      const total = Number(document.getElementById("liveTotalNotifications")?.textContent) || (muted + urgent);
+      const liveWalk = document.getElementById("liveWalkDuration");
+      const liveScreen = document.getElementById("liveScreenTime");
+      const liveTotal = document.getElementById("liveTotalNotifications");
+      const liveAllowed = document.getElementById("liveAllowed");
+      const liveSuppressed = document.getElementById("liveSuppressed");
+      if (liveWalk) liveWalk.textContent = formatChallengeDuration(walkDurationMs);
+      if (liveScreen) liveScreen.textContent = formatChallengeDuration(currentScreenTimeMs);
+      if (liveTotal) liveTotal.textContent = total;
+      if (liveAllowed) liveAllowed.textContent = urgent;
+      if (liveSuppressed) liveSuppressed.textContent = muted;
+
+      const screenFreeRatio = walkDurationMs > 0
+        ? Math.max(0, Math.min(100, Math.round((1 - currentScreenTimeMs / walkDurationMs) * 100)))
+        : 100;
+      const liveScore = document.getElementById("liveNoScreenScore");
+      const scoreOrb = document.getElementById("scoreOrb");
+      if (liveScore) liveScore.textContent = `${screenFreeRatio}%`;
+      if (scoreOrb) scoreOrb.style.setProperty("--score", screenFreeRatio);
+    }
+
+    function startScreenTracking() {
+      screenTimeMs = 0;
+      screenVisibleStartedAt = document.hidden ? null : Date.now();
+    }
+
+    function stopScreenTracking() {
+      if (screenVisibleStartedAt !== null) {
+        screenTimeMs += Date.now() - screenVisibleStartedAt;
+        screenVisibleStartedAt = null;
+      }
+    }
+
+    function startChallengeTracking() {
+      walkStartedAt = Date.now();
+      startScreenTracking();
+      if (challengeTimerId) clearInterval(challengeTimerId);
+      challengeTimerId = setInterval(updateChallengeStats, 500);
+      updateChallengeStats();
+    }
+
+    function stopChallengeTracking() {
+      stopScreenTracking();
+      if (challengeTimerId) clearInterval(challengeTimerId);
+      challengeTimerId = null;
+      updateChallengeStats();
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!isWalkActive) return;
+      if (document.hidden) {
+        if (screenVisibleStartedAt !== null) {
+          screenTimeMs += Date.now() - screenVisibleStartedAt;
+          screenVisibleStartedAt = null;
+        }
+      } else {
+        screenVisibleStartedAt = Date.now();
+      }
+      updateChallengeStats();
+    });
+
+    async function setWalkMode(active, source = "manual") {
+      if (walkTransitionInProgress) return false;
+      walkTransitionInProgress = true;
+      const context = document.getElementById("walkContextInput").value;
+      try {
+        const res = await fetch("/api/walk/set", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active, context })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        isWalkActive = Boolean(data.walk_active);
+
+        if (isWalkActive) {
+          resetFeedDisplay();
+          startChallengeTracking();
+          await updateCounts();
+          updateUIState();
+          if (source === "auto") {
+            autoStartedWalk = true;
+            speakText("Walking detected. Focus mode is on. Your phone can stay in your pocket.");
+          } else {
+            autoStartedWalk = false;
+            speakText("Walk mode started. Phone can rest in pocket. Enjoy touching grass.");
+          }
+          startReturnTimer();
+        } else {
+          stopReturnTimer();
+          stopChallengeTracking();
+          await updateCounts();
+          updateUIState();
+          showDigest();
+          autoStartedWalk = false;
+        }
+        return true;
+      } catch (e) {
+        console.error("Failed to set walk mode:", e);
+        return false;
+      } finally {
+        walkTransitionInProgress = false;
+      }
+    }
+
+    async function toggleWalk() {
+      const changed = await setWalkMode(!isWalkActive, "manual");
+      if (changed && !isWalkActive) {
+        clearPauseTimer();
+      }
+    }
+
+    function updateMotionUI(state, text, active = false) {
+      const title = document.getElementById("motionStateTitle");
+      const label = document.getElementById("motionStatusLabel");
+      const dot = document.getElementById("motionStatusDot");
+      if (title) title.textContent = state;
+      if (label) label.textContent = text;
+      if (dot) dot.className = `sensor-status-dot ${active ? "active" : ""}`;
+    }
+
+    function clearPauseTimer() {
+      if (pauseTimerId) {
+        clearTimeout(pauseTimerId);
+        pauseTimerId = null;
+      }
+    }
+
+    function startPauseTimer() {
+      clearPauseTimer();
+      updateMotionUI("Possible pause", "No walking detected. Waiting 20 seconds before ending focus mode.", false);
+      pauseTimerId = setTimeout(() => {
+        if (isWalkActive && autoStartedWalk && smartDetectionEnabled) {
+          setWalkMode(false, "auto");
+        }
+        pauseTimerId = null;
+      }, 20000);
+    }
+
+    function handleNativeWalkState(state) {
+      if (!smartDetectionEnabled) return;
+
+      if (state === "walking") {
+        clearPauseTimer();
+        updateMotionUI(
+          "Walking detected",
+          isWalkActive ? "Focus mode active" : "Starting focus mode",
+          true
+        );
+        if (!isWalkActive) {
+          setWalkMode(true, "auto");
+        }
+        return;
+      }
+
+      if (state === "still") {
+        if (isWalkActive && autoStartedWalk) {
+          startPauseTimer();
+        } else if (!isWalkActive) {
+          updateMotionUI("Sensor ready", "Waiting for walking", true);
+        }
+      }
+    }
+
+    function enableNativeSmartDetection() {
+      if (!window.AndroidWalkDetection) {
+        updateMotionUI("Android app required", "Install the GrassWhisper Android app to use native walking detection.", false);
+        return;
+      }
+      smartDetectionEnabled = true;
+      const button = document.getElementById("smartDetectBtn");
+      if (button) button.textContent = "Disable";
+      updateMotionUI("Sensor starting", "Requesting Android activity recognition...", true);
+      updateUIState();
+      window.AndroidWalkDetection.enable();
+    }
+
+    function disableNativeSmartDetection() {
+      smartDetectionEnabled = false;
+      clearPauseTimer();
+      const button = document.getElementById("smartDetectBtn");
+      if (button) button.textContent = "Enable";
+      updateMotionUI("Sensor standby", "Smart walking detection is off", false);
+      updateUIState();
+      if (window.AndroidWalkDetection) {
+        window.AndroidWalkDetection.disable();
+      }
+    }
+
+    function toggleSmartDetection() {
+      if (smartDetectionEnabled) {
+        disableNativeSmartDetection();
+      } else {
+        enableNativeSmartDetection();
+      }
+    }
+
+    window.handleNativeWalkState = handleNativeWalkState;
+    window.handleNativeWalkAvailability = function(available, message) {
+      if (available) {
+        updateMotionUI("Sensor ready", message || "Android activity recognition is ready", true);
+      } else {
+        smartDetectionEnabled = false;
+        const button = document.getElementById("smartDetectBtn");
+        if (button) button.textContent = "Enable";
+        updateMotionUI("Sensor unavailable", message || "Android activity recognition is unavailable", false);
+      }
+      updateUIState();
+    };
+    function updateUIState() {
+      const btn = document.getElementById("walkToggleBtn");
+      const title = document.getElementById("walkStateTitle");
+      const sub = document.getElementById("walkStateSubtitle");
+      const indicator = document.getElementById("walkStatusIndicator");
+      const icon = document.getElementById("walkBtnIcon");
+      const text = document.getElementById("walkBtnText");
+      const liveLabel = document.getElementById("heroLiveLabel");
+
+      if (isWalkActive) {
+        title.textContent = "Touching Grass 🌿";
+        title.className = "text-2xl font-extrabold text-emerald-400 mb-2";
+        sub.textContent = autoStartedWalk ? "Walking detected. Focus mode is active; your phone can stay in your pocket." : "Earphones active. Phone safely in pocket. Screen-free walk in progress.";
+        indicator.className = "w-3 h-3 rounded-full bg-emerald-400 pulse-walking mb-3";
+        btn.className = "w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-3 shadow-lg bg-stone-700 hover:bg-stone-600 text-stone-200 border border-stone-600";
+        icon.className = "fa-solid fa-house text-xl text-stone-300";
+        text.textContent = "End Walk & View Digest";
+        if (liveLabel) liveLabel.textContent = autoStartedWalk ? "AUTO WALK" : "WALK ACTIVE";
+      } else {
+        title.textContent = "Screen Resting";
+        title.className = "text-2xl font-extrabold text-stone-100 mb-2";
+        sub.textContent = smartDetectionEnabled ? "Smart detection is armed. Start walking and GrassWhisper will handle the transition." : "Ready to head outside. Keep your phone in your pocket.";
+        indicator.className = "w-3 h-3 rounded-full bg-stone-500 mb-3";
+        btn.className = "w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 flex items-center justify-center gap-3 shadow-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40";
+        icon.className = "fa-solid fa-person-walking text-xl";
+        text.textContent = "Start Walk Mode";
+        if (liveLabel) liveLabel.textContent = smartDetectionEnabled ? "MOTION ARMED" : "READY";
+      }
+    }
+
+    async function saveContext() {
+      const context = document.getElementById("walkContextInput").value;
+      alert("Walk context updated! Local AI will now filter based on this definition.");
+    }
+
+    async function sendPreset(app_name, sender, message) {
+      await dispatchNotification({ app_name, sender, message });
+    }
+
+    async function sendCustom() {
+      const app_name = document.getElementById("customApp").value || "App";
+      const sender = document.getElementById("customSender").value || "Unknown";
+      const message = document.getElementById("customMsg").value;
+      if (!message.trim()) {
+        alert("Please enter a message!");
+        return;
+      }
+      await dispatchNotification({ app_name, sender, message });
+      document.getElementById("customMsg").value = "";
+    }
+
+    const aggregationSpeechTimers = new Map();
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function scheduleNotificationAudio(item) {
+      if (!item.is_urgent || !item.audio_whisper) return;
+
+      const aggregationKey = item.presentation_key || `${item.sender}:${item.app_name}`;
+      const isAggregated = !item.repeated_contact && (Number(item.conversation_count || 1) > 1 || Boolean(item.duplicate_merged));
+
+      if (!isAggregated) {
+        speakText(item.audio_whisper);
+        return;
+      }
+
+      if (aggregationSpeechTimers.has(aggregationKey)) {
+        clearTimeout(aggregationSpeechTimers.get(aggregationKey));
+      }
+
+      const timer = setTimeout(() => {
+        aggregationSpeechTimers.delete(aggregationKey);
+        speakText(item.audio_whisper);
+      }, 1100);
+
+      aggregationSpeechTimers.set(aggregationKey, timer);
+    }
+
+    async function dispatchNotification(payload) {
+      if (!isWalkActive) {
+        alert("Start Walk Mode before sending a notification.");
+        return;
+      }
+
+      const feed = document.getElementById("feedList");
+      const empty = document.getElementById("emptyFeed");
+      if (empty) empty.remove();
+
+      const tempId = "temp-" + Date.now() + Math.random().toString(16).slice(2);
+      const loadingCard = document.createElement("div");
+      loadingCard.id = tempId;
+      loadingCard.dataset.feedEntry = "true";
+      loadingCard.className = "bg-stone-900/80 p-3 rounded-xl border border-stone-800 text-xs text-stone-400 flex items-center gap-2 animate-pulse";
+      loadingCard.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-emerald-400"></i> Local AI triaging message from <b>${escapeHtml(payload.sender)}</b>...`;
+      feed.prepend(loadingCard);
+      updateFeedVisibility();
+
+      try {
+        const res = await fetch("/api/triage", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const result = await res.json();
+        loadingCard.remove();
+        renderFeedItem(result);
+        await updateCounts();
+        scheduleNotificationAudio(result);
+      } catch (e) {
+        console.error("Triage error:", e);
+        loadingCard.innerHTML = `<span class="text-red-400">Classification failed</span>`;
+        updateFeedVisibility();
+      }
+    }
+
+    function getAggregationBadges(item) {
+      const badges = [];
+      if (Number(item.conversation_count || 1) > 1) {
+        badges.push(`<span class="aggregation-badge">${item.conversation_count}-message conversation</span>`);
+      }
+      if (item.duplicate_merged) {
+        badges.push(`<span class="aggregation-badge merge">${item.duplicate_count} notifications merged</span>`);
+      }
+      if (item.repeated_contact) {
+        badges.push(`<span class="aggregation-badge repeat">Repeated contact ×${item.repeated_contact_count}</span>`);
+      }
+      return badges.length ? `<div class="aggregation-badges">${badges.join("")}</div>` : "";
+    }
+
+    function renderFeedItem(item) {
+      const feed = document.getElementById("feedList");
+      const level = item.interruption_level || (item.is_urgent ? (Number(item.urgency_score) >= 9 ? "critical" : "important") : "queued");
+      const displayKey = item.presentation_key || `notification:${item.created_at || Date.now()}`;
+      const replaceKeys = new Set(item.replace_display_keys || []);
+
+      feed.querySelectorAll("[data-feed-entry='true']").forEach(entry => {
+        if (replaceKeys.has(entry.dataset.displayKey)) {
+          entry.remove();
+        }
+      });
+
+      let card = Array.from(feed.querySelectorAll("[data-feed-entry='true']"))
+        .find(entry => entry.dataset.displayKey === displayKey);
+
+      if (!card) {
+        card = document.createElement("div");
+        card.dataset.feedEntry = "true";
+        card.dataset.displayKey = displayKey;
+      }
+
+      card.dataset.interruptionLevel = level;
+      card.className = "notification-card";
+      const sender = escapeHtml(item.sender);
+      const appName = escapeHtml(item.app_name);
+      const message = escapeHtml(item.message);
+      const audio = escapeHtml(item.audio_whisper);
+      const reason = escapeHtml(item.reason);
+      const badges = getAggregationBadges(item);
+      const aggregationSummary = item.aggregation_summary ? `<div class="aggregation-summary">${escapeHtml(item.aggregation_summary)}</div>` : "";
+
+      if (level === "critical") {
+        card.innerHTML = `
+          <div class="notification-topline">
+            <span class="notification-level critical">🔴 CRITICAL</span>
+            <span class="notification-meta">${escapeHtml(item.timestamp)} · ${appName}</span>
+          </div>
+          ${badges}
+          ${aggregationSummary}
+          <div class="notification-message"><span>${sender}:</span> “${message}”</div>
+          <div class="notification-audio critical-audio"><b>Spoken immediately:</b> “${audio}”</div>
+          <div class="notification-reason">${reason}</div>
+        `;
+      } else if (level === "important") {
+        card.innerHTML = `
+          <div class="notification-topline">
+            <span class="notification-level important">🟠 IMPORTANT</span>
+            <span class="notification-meta">${escapeHtml(item.timestamp)} · ${appName}</span>
+          </div>
+          ${badges}
+          ${aggregationSummary}
+          <div class="notification-message"><span>${sender}:</span> “${message}”</div>
+          <div class="notification-audio important-audio"><b>Brief audio:</b> “${audio}”</div>
+          <div class="notification-reason">${reason}</div>
+        `;
+      } else {
+        card.innerHTML = `
+          <div class="notification-topline">
+            <span class="notification-level queued">🟢 QUEUED</span>
+            <span class="notification-meta">${escapeHtml(item.timestamp)} · ${appName}</span>
+          </div>
+          ${badges}
+          ${aggregationSummary}
+          <div class="notification-message"><span>${sender}:</span> “${message}”</div>
+          <div class="notification-reason queued-copy">Queued silently for your post-walk digest.</div>
+        `;
+      }
+
+      feed.prepend(card);
+      updateFeedVisibility();
+    }
+
+    let feedExpanded = false;
+
+    function updateFeedVisibility() {
+      const feed = document.getElementById("feedList");
+      const entries = Array.from(feed.querySelectorAll("[data-feed-entry='true']"));
+      const toggle = document.getElementById("feedToggle");
+
+      entries.forEach((entry, index) => {
+        entry.classList.toggle("hidden", !feedExpanded && index >= 4);
+      });
+
+      if (entries.length > 4) {
+        toggle.classList.remove("hidden");
+        toggle.textContent = feedExpanded ? "Show less" : `Show ${entries.length - 4} more`;
+      } else {
+        toggle.classList.add("hidden");
+      }
+    }
+
+    function toggleFeedExpansion() {
+      feedExpanded = !feedExpanded;
+      updateFeedVisibility();
+    }
+
+    async function loadVipContacts() {
+      try {
+        const res = await fetch("/api/contacts");
+        const contacts = await res.json();
+        renderVipChips(contacts);
+      } catch (e) {
+        console.error("Failed to load contacts:", e);
+      }
+    }
+
+    function renderVipChips(contacts) {
+      const container = document.getElementById("vipChipsContainer");
+      if (!container) return;
+      container.innerHTML = "";
+      if (!contacts || contacts.length === 0) {
+        container.innerHTML = `<span class="text-[11px] text-stone-500 italic">No saved VIP contacts yet.</span>`;
+        renderFamilyContactOptions(contacts);
+        return;
+      }
+      contacts.forEach(c => {
+        const chip = document.createElement("span");
+        chip.className = "inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/70 border border-amber-500/50 text-amber-200 rounded-lg text-[11px] font-semibold shadow-sm";
+        chip.innerHTML = `
+          <i class="fa-solid fa-star text-[9px] text-amber-400"></i>
+          <span>${c}</span>
+          <button onclick="removeVipContact('${c}')" class="hover:text-white ml-1 text-amber-400 font-bold transition" title="Remove">&times;</button>
+        `;
+        container.appendChild(chip);
+      });
+      renderFamilyContactOptions(contacts);
+    }
+
+    function renderFamilyContactOptions(contacts) {
+      const select = document.getElementById("familyContactSelect");
+      if (!select) return;
+      const previousSelection = select.value;
+      select.innerHTML = "";
+
+      if (!contacts || contacts.length === 0) {
+        select.innerHTML = `<option value="">Add a contact first</option>`;
+        select.disabled = true;
+      } else {
+        select.disabled = false;
+        contacts.forEach(contact => {
+          const option = document.createElement("option");
+          option.value = contact;
+          option.textContent = contact;
+          select.appendChild(option);
+        });
+        if (contacts.includes(previousSelection)) select.value = previousSelection;
+      }
+      updateFamilyEmergencyPreview();
+    }
+
+    function updateFamilyEmergencyPreview() {
+      const select = document.getElementById("familyContactSelect");
+      const preview = document.getElementById("familyEmergencyPreview");
+      if (preview) {
+        preview.textContent = `${select && select.value ? select.value : "Family"}: Dad had a fall, need you...`;
+      }
+    }
+
+    function sendFamilyEmergency() {
+      const select = document.getElementById("familyContactSelect");
+      const contact = select && select.value ? select.value : "Family";
+      sendPreset("WhatsApp", contact, "Dad had a fall and we need you at the hospital right now!");
+    }
+
+    async function addVipContact() {
+      const input = document.getElementById("newVipInput");
+      const name = input.value.trim();
+      if (!name) return;
+      const saved = await saveVipContact(name);
+      if (saved) input.value = "";
+    }
+
+    async function addFamilyContact() {
+      const input = document.getElementById("familyContactInput");
+      const name = input.value.trim();
+      if (!name) return;
+      const saved = await saveVipContact(name);
+      if (saved) {
+        input.value = "";
+        const select = document.getElementById("familyContactSelect");
+        if (select) {
+          select.value = name;
+          updateFamilyEmergencyPreview();
+        }
+      }
+    }
+
+    async function saveVipContact(name) {
+      try {
+        const res = await fetch("/api/contacts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name })
+        });
+        const contacts = await res.json();
+        renderVipChips(contacts);
+        return true;
+      } catch (e) {
+        console.error("Failed to add VIP contact:", e);
+        return false;
+      }
+    }
+
+    async function removeVipContact(name) {
+      try {
+        const res = await fetch(`/api/contacts/${encodeURIComponent(name)}`, {
+          method: "DELETE"
+        });
+        const contacts = await res.json();
+        renderVipChips(contacts);
+      } catch (e) {
+        console.error("Failed to delete contact:", e);
+      }
+    }
+
+    function updateAudioPrivacyUI(mode) {
+      audioPrivacyMode = mode === "full" ? "full" : "safe";
+      const safeButton = document.getElementById("privacyModeBtn");
+      const fullButton = document.getElementById("fullReadoutModeBtn");
+      const status = document.getElementById("audioModeStatus");
+      if (safeButton) safeButton.classList.toggle("active", audioPrivacyMode === "safe");
+      if (fullButton) fullButton.classList.toggle("active", audioPrivacyMode === "full");
+      if (status) status.textContent = audioPrivacyMode === "safe" ? "Privacy Mode ON" : "Full Readout Mode";
+    }
+
+    async function setAudioPrivacyMode(mode) {
+      const nextMode = mode === "full" ? "full" : "safe";
+      try {
+        const res = await fetch("/api/settings/audio-privacy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: nextMode })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        updateAudioPrivacyUI(data.audio_privacy_mode);
+      } catch (e) {
+        console.error("Failed to update audio privacy mode:", e);
+      }
+    }
+
+    async function updateCounts() {
+      try {
+        const res = await fetch("/api/status");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const muted = Number(data.muted_count) || 0;
+        const urgent = Number(data.urgent_count) || 0;
+        const total = Number(data.total_notifications) || (muted + urgent);
+        const liveTotal = document.getElementById("liveTotalNotifications");
+        const liveAllowed = document.getElementById("liveAllowed");
+        const liveSuppressed = document.getElementById("liveSuppressed");
+        if (liveTotal) liveTotal.textContent = total;
+        if (liveAllowed) liveAllowed.textContent = urgent;
+        if (liveSuppressed) liveSuppressed.textContent = muted;
+        if (data.model) document.getElementById("modelName").textContent = data.model;
+        updateAudioPrivacyUI(data.audio_privacy_mode || "safe");
+        updateChallengeStats();
+      } catch (e) {
+        console.error("Failed to update counts:", e);
+      }
+    }
+
+    function showDigest() {
+      const muted = Number(document.getElementById("liveSuppressed")?.textContent) || 0;
+      const urgent = Number(document.getElementById("liveAllowed")?.textContent) || 0;
+      const total = Number(document.getElementById("liveTotalNotifications")?.textContent) || (muted + urgent);
+      const walkDurationMs = walkStartedAt ? Math.max(0, Date.now() - walkStartedAt) : 0;
+      document.getElementById("digestWalkDuration").textContent = formatChallengeDuration(walkDurationMs);
+      document.getElementById("digestScreenTime").textContent = formatChallengeDuration(screenTimeMs);
+      document.getElementById("digestTotal").textContent = total;
+      document.getElementById("digestAllowed").textContent = urgent;
+      document.getElementById("digestSuppressed").textContent = muted;
+      const screenFreeRatio = walkDurationMs > 0
+        ? Math.max(0, Math.min(100, Math.round((1 - screenTimeMs / walkDurationMs) * 100)))
+        : 100;
+      const digestScore = document.getElementById("digestNoScreenScore");
+      const digestRing = document.querySelector(".digest-score-ring");
+      if (digestScore) digestScore.textContent = `${screenFreeRatio}%`;
+      if (digestRing) digestRing.style.setProperty("--score", screenFreeRatio);
+      document.getElementById("digestSummary").textContent = `${urgent} notification${urgent === 1 ? "" : "s"} reached you during the walk.`;
+      document.getElementById("digestModal").classList.remove("hidden");
+    }
+
+    function closeDigest() {
+      document.getElementById("digestModal").classList.add("hidden");
+    }
+
+    async function clearHistory() {
+      await fetch("/api/walk/reset", { method: "POST" });
+      resetFeedDisplay();
+      updateCounts();
+    }
+
+    function resetFeedDisplay() {
+      document.getElementById("feedList").innerHTML = `
+        <div id="emptyFeed" class="text-center py-12 text-stone-500 flex flex-col items-center gap-2">
+          <i class="fa-solid fa-tree text-3xl opacity-40"></i>
+          <p class="text-xs">No notifications yet. Put on your headphones and trigger an alert above.</p>
+        </div>
+      `;
+      feedExpanded = false;
+      updateFeedVisibility();
+      const liveTotal = document.getElementById("liveTotalNotifications");
+      const liveAllowed = document.getElementById("liveAllowed");
+      const liveSuppressed = document.getElementById("liveSuppressed");
+      if (liveTotal) liveTotal.textContent = "0";
+      if (liveAllowed) liveAllowed.textContent = "0";
+      if (liveSuppressed) liveSuppressed.textContent = "0";
+    }
+
+    updateUIState();
+    updateCounts();
+    loadVipContacts();
+    if (window.AndroidWalkDetection && window.AndroidWalkDetection.getState) {
+      window.AndroidWalkDetection.getState();
+    }
+  </script>
+</body>
+</html>
